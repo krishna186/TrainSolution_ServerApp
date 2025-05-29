@@ -1,0 +1,242 @@
+﻿@page "/componentsview"
+@using TrainSolution_ServerApp.Models
+@inject TrainComponentManagement TrainComponentManagement
+@inject NavigationManager Navigation
+
+<div class="container mt-5">
+    <h3 class="text-center mb-4">Component Data</h3>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <input placeholder="Filter by Fleet Name..." @bind="vehicleFilter" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <input type="date" @bind="fromDate" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <input type="date" @bind="toDate" class="form-control" />
+        </div>
+        <div class="col-md-3 d-flex">
+            <button class="btn btn-primary me-2 flex-fill" @onclick="LoadComponents">Apply Filters</button>
+            <button class="btn btn-success flex-fill" @onclick="AddComponent">Add Component</button>
+        </div>
+    </div>
+
+    @if (ListComponents == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!ListComponents.Any())
+    {
+        <div class="alert alert-info">No records found.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th @onclick="() => ApplySorting(nameof(TrainComponents.SerialNumber))" style="cursor:pointer;">
+                            Serial Number @GetSortIcon("SerialNumber")
+                        </th>
+                        <th @onclick="() => ApplySorting(nameof(TrainComponents.Description))" style="cursor:pointer;">
+                            Description @GetSortIcon("Description")
+                        </th>
+                        <th @onclick="() => ApplySorting(nameof(TrainComponents.VehicleNumber))" style="cursor:pointer;">
+                            Vehicle Number @GetSortIcon("VehicleNumber")
+                        </th>
+                        <th @onclick="() => ApplySorting(nameof(TrainComponents.InstallDate))" style="cursor:pointer;">
+                            Install Date @GetSortIcon("InstallDate")
+                        </th>
+                        <th style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in SortedComponents)
+                    {
+                        <tr>
+                            <td>@item.SerialNumber</td>
+                            <td>@item.Description</td>
+                            <td>@item.VehicleNumber</td>
+                            <td>@item.InstallDate.ToShortDateString()</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning me-2" @onclick="() => EditComponent(item.Id)">Edit</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ShowDeleteConfirmation(item.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(currentPage - 1)">Previous</button>
+                </li>
+
+                @for (int objpage = 1; objpage <= TotalPages; objpage++)
+                {
+                    <li class="page-item @(objpage == currentPage ? "active" : "")">
+                        <button class="page-link" @onclick="() => ChangePage(objpage)">@objpage</button>
+                    </li>
+                }
+
+                <li class="page-item @(currentPage == TotalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(currentPage + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>
+
+@if (showDeleteConfirmation)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Delete Confirmation</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this component?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TrainComponents> ListComponents = new List<TrainComponents>();
+    private List<TrainComponents> SortedComponents
+    {
+        get
+        {
+            var sortedList = SortComponents(ListComponents);
+            return sortedList
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+        }
+    }
+
+    private string? vehicleFilter;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    private string currentSortColumn = "InstallDate";
+    private bool sortAscending = true;
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int TotalPages => (int)Math.Ceiling((double)ListComponents.Count / pageSize);
+
+    private bool showDeleteConfirmation = false;
+    private int selectedComponentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadComponents();
+    }
+
+    private async Task LoadComponents()
+    {
+        ListComponents = await TrainComponentManagement.GetComponents(vehicleFilter, fromDate, toDate);
+        currentPage = 1;
+    }
+
+    private void EditComponent(int id)
+    {
+        Navigation.NavigateTo($"/AddComponents/{id}");
+    }
+
+    private void AddComponent()
+    {
+        Navigation.NavigateTo("/AddComponents");
+    }
+
+    private void ShowDeleteConfirmation(int id)
+    {
+        selectedComponentId = id;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirmation = false;
+        selectedComponentId = 0;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        await TrainComponentManagement.DeleteComponent(selectedComponentId);
+        showDeleteConfirmation = false;
+        await LoadComponents();
+    }
+
+    private void ApplySorting(string column)
+    {
+        if (currentSortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            currentSortColumn = column;
+            sortAscending = true;
+        }
+        currentPage = 1;
+    }
+
+    private List<TrainComponents> SortComponents(List<TrainComponents> components)
+    {
+        if (currentSortColumn == "SerialNumber")
+        {
+            return sortAscending
+                ? components.OrderBy(c => c.SerialNumber).ToList()
+                : components.OrderByDescending(c => c.SerialNumber).ToList();
+        }
+        else if (currentSortColumn == "Description")
+        {
+            return sortAscending
+                ? components.OrderBy(c => c.Description).ToList()
+                : components.OrderByDescending(c => c.Description).ToList();
+        }
+        else if (currentSortColumn == "VehicleNumber")
+        {
+            return sortAscending
+                ? components.OrderBy(c => c.VehicleNumber).ToList()
+                : components.OrderByDescending(c => c.VehicleNumber).ToList();
+        }
+        else if (currentSortColumn == "InstallDate")
+        {
+            return sortAscending
+                ? components.OrderBy(c => c.InstallDate).ToList()
+                : components.OrderByDescending(c => c.InstallDate).ToList();
+        }
+        else
+        {
+            return components;
+        }
+    }
+
+    private string GetSortIcon(string column)
+    {
+        return currentSortColumn == column
+            ? (sortAscending ? "▲" : "▼")
+            : string.Empty;
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page < 1 || page > TotalPages)
+            return;
+
+        currentPage = page;
+    }
+}

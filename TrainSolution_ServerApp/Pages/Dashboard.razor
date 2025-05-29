@@ -1,0 +1,64 @@
+﻿@page "/dashboard"
+@using TrainSolution_ServerApp.Models
+@inject TrainComponentManagement TrainComponentManagement
+
+<h3 class="text-center mt-4">Fleet Dashboard Summary</h3>
+
+@if (summary == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row mt-4 justify-content-center">
+        <div class="col-md-2">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-header">Total Vehicles</div>
+                <div class="card-body">
+                    <h5 class="card-title">@summary.TotalVehicles</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-header">Avg Components per Vehicle</div>
+                <div class="card-body">
+                    <h5 class="card-title">@summary.AvgComponentsPerVehicle</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-header">Earliest Date into Service</div>
+                <div class="card-body">
+                    <h5 class="card-title">@summary.EarliestDateInService</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-secondary mb-3">
+                <div class="card-header">Last Date into Service</div>
+                <div class="card-body">
+                    <h5 class="card-title">@summary.LastDateInService</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-secondary mb-3">
+                <div class="card-header">Average Vehicle Age(Years)</div>
+                <div class="card-body">
+                    <h5 class="card-title">@summary.AvgVehicleAge</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardSummary? summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        summary = await TrainComponentManagement.GetDashboardSummary();
+    }
+}
